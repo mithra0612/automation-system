@@ -10,7 +10,7 @@ function DeleteRepository({ token, user, repos, onRepoDeleted }) {
       return;
     }
     try {
-      await axios.delete('http://localhost:3000/delete-repo', {
+      await axios.delete('http://localhost:3000/api/github/delete-repo', {
         data: { token, owner: user.login, repo: deleteTarget }
       });
       alert('Repo deleted');

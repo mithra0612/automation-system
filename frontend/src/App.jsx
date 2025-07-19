@@ -20,12 +20,12 @@ function App() {
 
   const fetchUserAndRepos = async (authToken) => {
     try {
-      const userRes = await axios.get('http://localhost:3000/user', {
+      const userRes = await axios.get('http://localhost:3000/api/github/user', {
         headers: { Authorization: authToken }
       });
       setUser(userRes.data);
 
-      const reposRes = await axios.get('http://localhost:3000/repositories', {
+      const reposRes = await axios.get('http://localhost:3000/api/github/repositories', {
         headers: { Authorization: authToken }
       });
       setRepos(reposRes.data);
@@ -35,7 +35,7 @@ function App() {
   };
 
   const login = () => {
-    window.location.href = 'http://localhost:3000/login';
+    window.location.href = 'http://localhost:3000/api/github/login';
   };
 
   return (

@@ -9,7 +9,7 @@ function CreateRepository({ token, onRepoCreated }) {
 
   const createRepo = async () => {
     try {
-      const res = await axios.post('http://localhost:3000/create-repo', {
+      const res = await axios.post('http://localhost:3000/api/github/create-repo', {
         token,
         name: repoName,
         description: repoDescription,

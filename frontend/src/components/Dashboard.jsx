@@ -6,7 +6,7 @@ import RepositoryList from './RepositoryList';
 function Dashboard({ token, user, repos, onUserFetch, onReposFetch }) {
   const getUser = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/user', {
+      const res = await axios.get('http://localhost:3000/api/github/user', {
         headers: { Authorization: token }
       });
       onUserFetch(res.data);
@@ -17,7 +17,7 @@ function Dashboard({ token, user, repos, onUserFetch, onReposFetch }) {
 
   const getRepos = async () => {
     try {
-      const res = await axios.get('http://localhost:3000/repositories', {
+      const res = await axios.get('http://localhost:3000/api/github/repositories', {
         headers: { Authorization: token }
       });
       onReposFetch(res.data);
