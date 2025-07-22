@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import ConfirmationModal from './ConfirmationModal';
 import ChatInterface from './ChatInterface';
+import RepositoryDetailPage from './RepositoryDetailPage'; // new import
 
 function RepositoryList({ repos, token, user, onRepoDeleted, onRepoUpdated }) {
+  const [readmes, setReadmes] = useState({}); // repo.id -> readme snippet
+  const [detailedRepoId, setDetailedRepoId] = useState(null); // repo.id or null
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, repo: null });
   const [copiedRepoId, setCopiedRepoId] = useState(null);
-  const [readmes, setReadmes] = useState({}); // repo.id -> readme snippet
-  const [moreMenuOpen, setMoreMenuOpen] = useState(null); // repo.id or null
   const [chatOpenRepoId, setChatOpenRepoId] = useState(null);
 
   // Fetch README for visible repos
@@ -26,7 +27,7 @@ function RepositoryList({ repos, token, user, onRepoDeleted, onRepoUpdated }) {
           );
           if (res.ok) {
             const text = await res.text();
-            newReadmes[repo.id] = text.slice(0, 200); // first 200 chars
+            newReadmes[repo.id] = text; // Store full README for detail page
           } else {
             newReadmes[repo.id] = null;
           }
@@ -70,12 +71,18 @@ function RepositoryList({ repos, token, user, onRepoDeleted, onRepoUpdated }) {
       if (response.ok) {
         alert('Repository deleted successfully');
         onRepoDeleted();
+        // Close detail view if the deleted repo was being viewed
+        if (detailedRepoId === confirmModal.repo.id) {
+          setDetailedRepoId(null);
+        }
       } else {
         throw new Error('Failed to delete repository');
       }
     } catch (error) {
       console.error('Error deleting repository:', error);
       alert('Error deleting repository');
+    } finally {
+      setConfirmModal({ isOpen: false, repo: null });
     }
   };
 
@@ -91,6 +98,31 @@ function RepositoryList({ repos, token, user, onRepoDeleted, onRepoUpdated }) {
     if (size < 1024) return `${size} KB`;
     return `${(size / 1024).toFixed(1)} MB`;
   };
+
+  // Find the repo for detail view
+  const detailedRepo = repos.find(r => r.id === detailedRepoId);
+
+  // Show RepositoryDetailPage if detailedRepoId is set
+  if (detailedRepoId && detailedRepo) {
+    return (
+      <RepositoryDetailPage
+        repo={detailedRepo}
+        readme={readmes[detailedRepoId]}
+        token={token}
+        user={user}
+        onBack={() => setDetailedRepoId(null)}
+        onDelete={() => handleDeleteClick(detailedRepo)}
+        onCopied={() => {
+          navigator.clipboard.writeText(detailedRepo.clone_url);
+          setCopiedRepoId(detailedRepo.id);
+          setTimeout(() => setCopiedRepoId(null), 1200);
+        }}
+        copiedRepoId={copiedRepoId}
+        chatOpenRepoId={chatOpenRepoId}
+        setChatOpenRepoId={setChatOpenRepoId}
+      />
+    );
+  }
 
   return (
     <>
@@ -137,109 +169,47 @@ function RepositoryList({ repos, token, user, onRepoDeleted, onRepoUpdated }) {
                 </div>
               </div>
 
-              {/* Repository Description */}
+              {/* Description */}
               {repo.description && (
-                <p className="text-gray-400 mb-3 text-sm line-clamp-2 flex-grow">{repo.description}</p>
+                <p className="text-gray-400 mb-3 text-sm line-clamp-2">{repo.description}</p>
               )}
 
-              {/* README snippet */}
+              {/* README Preview */}
               {readmes[repo.id] && (
                 <div className="mb-3 text-xs text-gray-300 font-mono">
                   <span className="font-semibold text-blue-400">README:</span>{" "}
                   <span>
-                    {readmes[repo.id]}
-                    {readmes[repo.id].length === 200 ? (
-                      <span className="text-blue-400 cursor-pointer">...read more</span>
-                    ) : null}
+                    {readmes[repo.id].slice(0, 100)}
+                    {readmes[repo.id].length > 100 && '...'}
                   </span>
                 </div>
               )}
 
-              {/* Minimal Action Buttons */}
-              <div className="flex gap-2 mt-auto">
-                <a
-                  href={repo.html_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1 bg-gray-800 text-white text-sm rounded hover:bg-gray-700 transition"
-                >
-                  View
-                </a>
-                <button
-                  onClick={() => setMoreMenuOpen(moreMenuOpen === repo.id ? null : repo.id)}
-                  className="px-3 py-1 bg-gray-800 text-white text-sm rounded hover:bg-gray-700 transition"
-                  aria-label="Actions"
-                >
-                  Actions
-                </button>
-                <button
-                  onClick={() => setChatOpenRepoId(chatOpenRepoId === repo.id ? null : repo.id)}
-                  className="px-3 py-1 bg-gray-800 text-white text-sm rounded hover:bg-gray-700 transition"
-                  aria-label="Chat"
-                >
-                  Chat
-                </button>
-                {/* Actions dropdown menu */}
-                {moreMenuOpen === repo.id && (
-                  <div className="absolute mt-8 ml-24 z-10 bg-gray-900 border border-gray-700 rounded shadow-lg flex flex-col min-w-[140px]">
-                    <button
-                      onClick={async () => {
-                        await navigator.clipboard.writeText(repo.clone_url);
-                        setCopiedRepoId(repo.id);
-                        setTimeout(() => setCopiedRepoId(null), 1200);
-                        setMoreMenuOpen(null);
-                      }}
-                      className="px-4 py-2 text-left text-sm text-gray-200 hover:bg-gray-800"
-                    >
-                      {copiedRepoId === repo.id ? "Copied!" : "Copy Clone URL"}
-                    </button>
-                    <a
-                      href={`${repo.html_url}/settings`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2 text-left text-sm text-gray-200 hover:bg-gray-800"
-                      onClick={() => setMoreMenuOpen(null)}
-                    >
-                      Settings
-                    </a>
-                    <button
-                      onClick={() => {
-                        setMoreMenuOpen(null);
-                        handleDeleteClick(repo);
-                      }}
-                      className="px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-800"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Chat dropdown/modal */}
-              {chatOpenRepoId === repo.id && (
-                <div className="absolute z-20 top-0 left-0 w-full h-full flex items-center justify-center bg-black/70 rounded-xl">
-                  <div className="bg-gray-950/95 p-4 rounded-xl border border-gray-800/80 shadow-2xl w-full max-w-md relative">
-                    <button
-                      className="absolute top-2 right-2 text-gray-400 hover:text-gray-200"
-                      onClick={() => setChatOpenRepoId(null)}
-                      aria-label="Close chat"
-                    >
-                      ×
-                    </button>
-                    <div className="mb-2 text-sm text-gray-300 font-semibold">
-                      Chat about <span className="text-blue-400">{repo.name}</span>
-                    </div>
-                    <ChatInterface repo={repo} user={user} />
-                  </div>
-                </div>
-              )}
-
-              {/* Repository Metadata */}
-              <div className="mt-3 pt-3 border-t border-gray-800/50 text-xs text-gray-600">
+              {/* Metadata */}
+              <div className="mt-auto pt-3 border-t border-gray-800/50 text-xs text-gray-600 mb-3">
                 <div className="flex justify-between">
                   <span>Size: {formatSize(repo.size)}</span>
                   <span>Updated: {formatDate(repo.updated_at)}</span>
                 </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <a
+                  href={repo.html_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-0.5 bg-gray-800 text-white text-xs rounded hover:bg-gray-700 transition"
+                >
+                  View
+                </a>
+                <button
+                  onClick={() => setDetailedRepoId(repo.id)}
+                  className="px-2 py-0.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-500 transition"
+                  aria-label="View Details & Actions"
+                >
+                  Actions
+                </button>
               </div>
             </div>
           ))}
